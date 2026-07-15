@@ -17,7 +17,19 @@ const app = express();
 
 // Security Middlewares
 app.use(helmet());
-app.use(cors());
+
+const corsOptions = {
+  origin: [
+    'https://crm-wibr.vercel.app',
+    'https://crm-wibr.vercel.app/',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // Logging in development
