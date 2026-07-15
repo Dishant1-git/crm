@@ -1,139 +1,102 @@
+require('dotenv').config();
 const express = require('express');
+const http = require('http');
+const socketio = require('socket.io');
 const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const morgan = require('morgan');
-const dotenv = require('dotenv');
+const path = require('path');
 const connectDB = require('./config/db');
-const errorHandler = require('./middleware/errorMiddleware');
 
-// Load environment variables
-dotenv.config();
+// Route imports
+const authRoutes = require('./routes/authRoutes');
+const courseRoutes = require('./routes/courseRoutes');
+const enrollmentRoutes = require('./routes/enrollmentRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const meetingRoutes = require('./routes/meetingRoutes');
+const testRoutes = require('./routes/testRoutes');
+const assignmentRoutes = require('./routes/assignmentRoutes');
+const certificateRoutes = require('./routes/certificateRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
-// Connect to Database
+// Socket handler import
+const initSocket = require('./socket/index');
+
+// Initialize database
 connectDB();
 
 const app = express();
+const server = http.createServer(app);
 
-// Security Middlewares
-app.use(helmet());
-app.use(cors());
+// Enable CORS
+app.use(cors({
+  origin: function(origin, callback) {
+    // Permit any local development ports, the configured frontend url, or the production Vercel url
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,
+      'https://crm-wibr.vercel.app',
+      'https://crm-wibr.vercel.app/'
+    ];
+    if (!origin || origin.startsWith('http://localhost:') || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by CORS policy'));
+    }
+  },
+  credentials: true,
+}));
+
+// Stripe webhook requires raw body parser before express.json()
+// Express routes will evaluate match patterns sequentially
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+// For all other routes, parse JSON body
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Logging in development
-if (process.env.NODE_ENV !== 'production') {
-  app.use(morgan('dev'));
-}
+// Server API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/enrollments', enrollmentRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/meetings', meetingRoutes);
+app.use('/api/tests', testRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/certificates', certificateRoutes);
+app.use('/api/admin', adminRoutes);
 
-// Rate limiting (max 100 requests per 15 minutes)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again after 15 minutes'
-  }
-});
-app.use(limiter);
+// Serve uploads static assets
+app.use('/uploads', express.static(path.join(__dirname, 'temp')));
 
-// Import controllers directly for root routes mapping
-const authController = require('./controllers/authController');
-const teacherController = require('./controllers/teacherController');
-const studentController = require('./controllers/studentController');
-const classController = require('./controllers/classController');
-const attendanceController = require('./controllers/attendanceController');
-const reportController = require('./controllers/reportController');
-const teachingPlanController = require('./controllers/teachingPlanController');
-const googleSheets = require('./config/googleSheets');
-const upload = require('./middleware/uploadMiddleware');
-const { protect, authorize } = require('./middleware/authMiddleware');
-
-// User Specified API Mappings (mapped exactly as requested at the root level)
-app.post('/login', authController.login);
-
-app.post('/teacher', protect, authorize('HEAD'), teacherController.createTeacher);
-app.get('/teachers', protect, authorize('HEAD'), teacherController.getTeachers);
-app.put('/teacher/:id', protect, authorize('HEAD'), teacherController.updateTeacher);
-app.delete('/teacher/:id', protect, authorize('HEAD'), teacherController.deleteTeacher);
-
-// Support plural endpoints for client compatibility
-app.post('/teachers', protect, authorize('HEAD'), teacherController.createTeacher);
-app.put('/teachers/:id', protect, authorize('HEAD'), teacherController.updateTeacher);
-app.delete('/teachers/:id', protect, authorize('HEAD'), teacherController.deleteTeacher);
-
-app.post('/students/upload', protect, authorize('TEACHER'), upload.single('file'), studentController.uploadExcel);
-app.get('/students', protect, studentController.getStudents);
-
-app.post('/attendance', protect, authorize('TEACHER'), attendanceController.markAttendance);
-app.get('/attendance', protect, attendanceController.getAttendance);
-
-app.get('/reports', protect, reportController.getStudentReports);
-app.get('/reports/export', protect, reportController.exportReport);
-app.get('/reports/analytics', protect, reportController.getAnalytics);
-
-// Classes root mapping
-app.get('/classes', protect, classController.getClasses);
-app.post('/classes', protect, authorize('HEAD'), classController.createClass);
-app.get('/classes/:id', protect, classController.getClass);
-app.put('/classes/:id', protect, authorize('HEAD'), classController.updateClass);
-app.delete('/classes/:id', protect, authorize('HEAD'), classController.deleteClass);
-
-// Teaching Plans root mapping
-app.get('/teaching-plans', protect, teachingPlanController.getTeachingPlans);
-app.post('/teaching-plans', protect, authorize('TEACHER'), teachingPlanController.addTeachingPlan);
-
-// Google Sheets manually trigger sync check
-app.post('/google-sheet/sync', protect, async (req, res, next) => {
-  try {
-    const result = await googleSheets.appendAbsentees([
-      {
-        date: new Date().toLocaleDateString('en-GB'),
-        teacherName: req.user.name,
-        className: 'Connection Verification',
-        rollNo: 'TEST-01',
-        name: 'Connectivity Ping',
-        status: 'Absent'
-      }
-    ]);
-    res.status(200).json({
-      success: true,
-      message: 'Google Sheets sync test complete.',
-      data: result
-    });
-  } catch (error) {
-    next(error);
-  }
+// Welcome message/Health Check
+app.get('/', (req, res) => {
+  res.send('Online Learning Enterprise API Running...');
 });
 
-// Modular Routes Registration (under /api for clean structure)
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/teachers', require('./routes/teacherRoutes'));
-app.use('/api/classes', require('./routes/classRoutes'));
-app.use('/api/students', require('./routes/studentRoutes'));
-app.use('/api/attendance', require('./routes/attendanceRoutes'));
-app.use('/api/teaching-plans', require('./routes/teachingPlanRoutes'));
-app.use('/api/reports', require('./routes/reportRoutes'));
-
-// Fallback route (404 API)
-app.use('*', (req, res) => {
-  res.status(404).json({
+// Central Error Handler Middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
     success: false,
-    message: 'API route not found'
+    message: err.message || 'Internal Server Error',
   });
 });
 
-// Global Error Handler Middleware
-app.use(errorHandler);
-
-const PORT = process.env.PORT || 5000;
-
-const server = app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+// Initialize Socket.IO
+const io = socketio(server, {
+  cors: {
+    origin: [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
+      'https://crm-wibr.vercel.app',
+      'https://crm-wibr.vercel.app/'
+    ],
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
 });
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err, promise) => {
-  console.log(`Unhandled Rejection Error: ${err.message}`);
-  // Close server & exit process
-  server.close(() => process.exit(1));
+initSocket(io);
+
+// Start server
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
 });
