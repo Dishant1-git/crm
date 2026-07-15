@@ -20,8 +20,8 @@ app.use(helmet());
 
 const corsOptions = {
   origin: [
-    'https://crm-wibr.vercel.app',
-    'https://crm-wibr.vercel.app/',
+    'https://crm-lyart-nu-25.vercel.app',
+    'https://crm-lyart-nu-25.vercel.app/',
     'http://localhost:5173',
     'http://localhost:3000'
   ],
