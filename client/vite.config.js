@@ -8,16 +8,16 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:5056',
-      '/login': 'http://localhost:5056',
-      '/teacher': 'http://localhost:5056',
-      '/teachers': 'http://localhost:5056',
-      '/classes': 'http://localhost:5056',
-      '/students': 'http://localhost:5056',
-      '/attendance': 'http://localhost:5056',
-      '/reports': 'http://localhost:5056',
-      '/google-sheet': 'http://localhost:5056',
-      '/teaching-plans': 'http://localhost:5056'
+      '/api': 'https://crm-9i8x.onrender.com',
+      '/login': 'https://crm-9i8x.onrender.com',
+      '/teacher': 'https://crm-9i8x.onrender.com',
+      '/teachers': 'https://crm-9i8x.onrender.com',
+      '/classes': 'https://crm-9i8x.onrender.com',
+      '/students': 'https://crm-9i8x.onrender.com',
+      '/attendance': 'https://crm-9i8x.onrender.com',
+      '/reports': 'https://crm-9i8x.onrender.com',
+      '/google-sheet': 'https://crm-9i8x.onrender.com',
+      '/teaching-plans': 'https://crm-9i8x.onrender.com'
     }
   }
 })

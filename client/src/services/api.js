@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: '', // Proxied through Vite server configuration
+  baseURL: import.meta.env.VITE_API_URL || 'https://crm-9i8x.onrender.com',
   headers: {
     'Content-Type': 'application/json',
   },
