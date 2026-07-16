@@ -77,6 +77,9 @@ app.put('/teachers/:id/reset-password', protect, teacherController.resetPassword
 
 app.post('/students/upload', protect, authorize('TEACHER'), upload.single('file'), studentController.uploadExcel);
 app.get('/students', protect, studentController.getStudents);
+app.post('/students', protect, authorize('TEACHER'), studentController.createStudent);
+app.put('/students/:id', protect, authorize('TEACHER'), studentController.updateStudent);
+app.delete('/students/:id', protect, authorize('TEACHER'), studentController.deleteStudent);
 
 app.post('/attendance', protect, authorize('TEACHER'), attendanceController.markAttendance);
 app.get('/attendance', protect, attendanceController.getAttendance);
