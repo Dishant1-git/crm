@@ -149,9 +149,9 @@ exports.deleteTeacher = async (req, res, next) => {
   }
 };
 
-// @desc    Reset teacher password
+// @desc    Reset password (Self or Head resetting Teacher)
 // @route   PUT /api/teachers/:id/reset-password
-// @access  Private/HEAD
+// @access  Private
 exports.resetPassword = async (req, res, next) => {
   try {
     const { password } = req.body;
@@ -159,14 +159,22 @@ exports.resetPassword = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    const teacher = await User.findById(req.params.id);
-    if (!teacher || teacher.role !== 'TEACHER') {
-      return res.status(404).json({ success: false, message: 'Teacher not found' });
+    const userToUpdate = await User.findById(req.params.id);
+    if (!userToUpdate) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Check authorization: user is resetting their own password OR HEAD is resetting a TEACHER's password
+    const isSelf = req.user._id.toString() === req.params.id.toString();
+    const isHeadResettingTeacher = req.user.role === 'HEAD' && userToUpdate.role === 'TEACHER';
+
+    if (!isSelf && !isHeadResettingTeacher) {
+      return res.status(403).json({ success: false, message: 'Not authorized to reset this password' });
     }
 
     const salt = await bcrypt.genSalt(10);
-    teacher.password = await bcrypt.hash(password, salt);
-    await teacher.save();
+    userToUpdate.password = await bcrypt.hash(password, salt);
+    await userToUpdate.save();
 
     res.status(200).json({
       success: true,

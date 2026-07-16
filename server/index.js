@@ -72,6 +72,8 @@ app.delete('/teacher/:id', protect, authorize('HEAD'), teacherController.deleteT
 app.post('/teachers', protect, authorize('HEAD'), teacherController.createTeacher);
 app.put('/teachers/:id', protect, authorize('HEAD'), teacherController.updateTeacher);
 app.delete('/teachers/:id', protect, authorize('HEAD'), teacherController.deleteTeacher);
+app.put('/teacher/:id/reset-password', protect, teacherController.resetPassword);
+app.put('/teachers/:id/reset-password', protect, teacherController.resetPassword);
 
 app.post('/students/upload', protect, authorize('TEACHER'), upload.single('file'), studentController.uploadExcel);
 app.get('/students', protect, studentController.getStudents);
@@ -79,6 +81,7 @@ app.get('/students', protect, studentController.getStudents);
 app.post('/attendance', protect, authorize('TEACHER'), attendanceController.markAttendance);
 app.get('/attendance', protect, attendanceController.getAttendance);
 
+app.get('/reports/students', protect, reportController.getStudentReports);
 app.get('/reports', protect, reportController.getStudentReports);
 app.get('/reports/export', protect, reportController.exportReport);
 app.get('/reports/analytics', protect, reportController.getAnalytics);
